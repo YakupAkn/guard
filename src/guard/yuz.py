@@ -16,21 +16,61 @@ TESPIT_SKOR = 0.9
 TANIDIK_SURE = 3.0  # tanidik yuz kaybolsa da bu kadar sn tanidik sayilir
 
 
+# Hugging Face aynaları (OpenCV Zoo LFS sorunlarını aşar)
+_MODEL_URL = {
+    "face_detection_yunet_2023mar.onnx":
+        "https://huggingface.co/opencv/face_detection_yunet/resolve/main/face_detection_yunet_2023mar.onnx",
+    "face_recognition_sface_2021dec.onnx":
+        "https://huggingface.co/opencv/face_recognition_sface/resolve/main/face_recognition_sface_2021dec.onnx",
+}
+
+
+def _indir_model(url: str, yol: Path) -> None:
+    """Basit progress ile model indirir (urllib, ek paket yok)."""
+    import urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": "GuardSecurity"})
+    with urllib.request.urlopen(req, timeout=120) as r, open(yol, "wb") as f:
+        toplam = int(r.headers.get("Content-Length") or 0)
+        alinan = 0
+        while True:
+            parca = r.read(1 << 16)
+            if not parca:
+                break
+            f.write(parca)
+            alinan += len(parca)
+            if toplam:
+                print(f"\r  {yol.name}: %{alinan * 100 // toplam}", end="", flush=True)
+    print()
+
+
 def modelleri_hazirla(ana_klasor: Path = KLASOR) -> Path:
-    """Eksik ONNX modellerini bulunabildigi yerden AppData'ya kopyalar."""
+    """Eksik ONNX modellerini kopyalar; yoksa internetten indirir."""
     hedef = ana_klasor / "modeller"
     hedef.mkdir(parents=True, exist_ok=True)
     for ad in MODEL_ADLARI:
         dosya = hedef / ad
-        if dosya.exists():
+        if dosya.exists() and dosya.stat().st_size > 10_000:
             continue
         for klasor in kaynak_adaylari("modeller"):
-            if (klasor / ad).exists():
+            kaynak = klasor / ad
+            if kaynak.exists():
                 try:
-                    shutil.copy2(klasor / ad, dosya)
+                    shutil.copy2(kaynak, dosya)
                     break
                 except OSError:
                     pass
+        if dosya.exists() and dosya.stat().st_size > 10_000:
+            continue
+        url = _MODEL_URL.get(ad)
+        if not url:
+            continue
+        try:
+            print(f"Model indiriliyor: {ad}")
+            gecici = dosya.with_suffix(".part")
+            _indir_model(url, gecici)
+            gecici.replace(dosya)
+        except Exception as e:
+            print(f"Model indirilemedi ({ad}): {e}")
     return hedef
 
 
