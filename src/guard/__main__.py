@@ -1,0 +1,5 @@
+"""python -m guard [tray|kilit|test|kurulum|kisayol]"""
+from guard.app import main
+
+if __name__ == "__main__":
+    main()

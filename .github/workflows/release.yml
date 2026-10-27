@@ -1,0 +1,52 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build exe
+        run: |
+          pyinstaller --noconfirm --onefile --windowed `
+            --name GuardSecurity `
+            --add-data "assets/dashboard.html;." `
+            --paths src `
+            --hidden-import guard.ayarlar `
+            --hidden-import guard.kamera `
+            --hidden-import guard.yuz `
+            --hidden-import guard.yuz_kayit `
+            --hidden-import guard.kisayol `
+            src/guard/__main__.py
+
+      - name: SHA256
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist\GuardSecurity.exe -Algorithm SHA256).Hash.ToLower()
+          Set-Content -Path dist\GuardSecurity.exe.sha256 -Value "$h  GuardSecurity.exe" -NoNewline
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/GuardSecurity.exe
+            dist/GuardSecurity.exe.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

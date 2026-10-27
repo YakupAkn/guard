@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guard</title>
+<script src="telemetri_veri.js"></script>
+<style>
+:root{--zemin:#eef1f4;--yuzey:#fbfcfd;--yazi:#16212c;--soluk:#5b6a78;--cizgi:#d3dae1;--vurgu:#2b5d8c;--iyi:#2e7d5b;--uyari:#a8660a;--tehlike:#b3261e;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--zemin:#10161d;--yuzey:#161e27;--yazi:#e4e9ee;--soluk:#94a3b1;--cizgi:#27323e;--vurgu:#7fb0e0;--iyi:#5fc196;--uyari:#e0a84e;--tehlike:#f08a82}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--zemin);color:var(--yazi);font:15px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;padding:28px 20px 56px}
+main{max-width:1040px;margin:0 auto}
+h1,h2,.sayi,.durum{font-family:Bahnschrift,"Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;font-weight:600}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:22px}
+h1{font-size:1.1rem}
+.soluk{color:var(--soluk);font-size:.85rem}
+.hero{background:var(--yuzey);border-left:5px solid var(--cizgi);padding:22px 26px;margin-bottom:34px}
+.hero.iyi{border-color:var(--iyi)}.hero.tehlike{border-color:var(--tehlike)}
+.durum{font-size:1.9rem;line-height:1.2;margin-bottom:6px}
+.sayaclar{display:flex;flex-wrap:wrap;margin-top:20px;border-top:1px solid var(--cizgi)}
+.sayac{flex:1 1 150px;padding:14px 18px 0 0}
+.sayac+.sayac{padding-left:18px;border-left:1px solid var(--cizgi)}
+.sayi{font-size:1.7rem;display:block}
+section{margin-bottom:38px}
+h2{font-size:1.15rem;margin-bottom:12px}
+.dagilim{display:flex;height:14px;background:var(--cizgi);overflow:hidden}
+.dagilim i{display:block;height:100%}
+.lejant{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:10px;font-size:.88rem}
+.lejant b{display:inline-block;width:10px;height:10px;margin-right:7px}
+.filtre{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+input,select{background:var(--yuzey);color:var(--yazi);border:1px solid var(--cizgi);padding:8px 11px;font:inherit}
+input{flex:1;min-width:200px}
+.olaylar{background:var(--yuzey);max-height:460px;overflow-y:auto}
+.olay{display:grid;grid-template-columns:116px 1fr;gap:2px 16px;padding:9px 14px;border-left:4px solid var(--cizgi);border-bottom:1px solid var(--cizgi)}
+.olay.uyari{border-left-color:var(--uyari)}.olay.tehlike{border-left-color:var(--tehlike)}
+.olay time{color:var(--soluk);font-size:.85rem;white-space:nowrap}
+.olay small{grid-column:2;color:var(--soluk);font-size:.8rem;word-break:break-word}
+.bos{padding:18px 14px;color:var(--soluk)}
+.donanim{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+.grafik b{font-weight:600}
+svg{display:block;width:100%;height:56px;margin-top:6px;background:var(--yuzey)}
+svg polyline{fill:none;stroke:var(--vurgu);stroke-width:1.6;vector-effect:non-scaling-stroke}
+dl{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:.9rem}
+dt{color:var(--soluk)}dd{word-break:break-word}
+details{margin-top:6px}
+summary{cursor:pointer;font-weight:600}
+pre{background:var(--yuzey);padding:14px;margin-top:10px;max-height:340px;overflow:auto;font:.8rem/1.5 Consolas,monospace;white-space:pre-wrap}
+@media (max-width:760px){.donanim{grid-template-columns:1fr}.olay{grid-template-columns:1fr}.olay small{grid-column:1}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Guard</h1><span class="soluk" id="guncelleme">Veri bekleniyor</span></header>
+
+<div class="hero" id="hero">
+  <div class="durum" id="durum">Veri bekleniyor</div>
+  <div class="soluk" id="sonOlay"></div>
+  <div class="sayaclar">
+    <div class="sayac"><span class="sayi" id="yabanci">0</span>yabancı yüz</div>
+    <div class="sayac"><span class="sayi" id="sifre">0</span>yanlış şifre</div>
+    <div class="sayac"><span class="sayi" id="engel">0</span>kamera engeli</div>
+    <div class="sayac"><span class="sayi" id="uyku">0</span>uykudan uyanma</div>
+  </div>
+</div>
+
+<section>
+  <h2>Zamanın dağılımı</h2>
+  <div class="dagilim" id="dagilim"></div>
+  <div class="lejant" id="lejant"></div>
+</section>
+
+<section>
+  <h2>Olaylar</h2>
+  <div class="filtre">
+    <input id="ara" type="search" placeholder="Olaylarda ara, örneğin yabancı, şifre, yakup" oninput="listele()">
+    <select id="grup" onchange="listele()">
+      <option value="onemli">Önemli olaylar</option>
+      <option value="guvenlik">Güvenlik ve kamera</option>
+      <option value="sistem">Sistem</option>
+      <option value="hata">Hatalar</option>
+      <option value="tumu">Hepsi, telemetri dahil</option>
+    </select>
+  </div>
+  <div class="olaylar" id="olaylar"></div>
+</section>
+
+<section>
+  <h2>Donanım</h2>
+  <div class="donanim">
+    <div>
+      <div class="grafik"><b>İşlemci</b> <span id="cpuMetin" class="soluk"></span><svg id="cpuGrafik" viewBox="0 0 240 56" preserveAspectRatio="none"></svg></div>
+      <div class="grafik" style="margin-top:18px"><b>Bellek</b> <span id="ramMetin" class="soluk"></span><svg id="ramGrafik" viewBox="0 0 240 56" preserveAspectRatio="none"></svg></div>
+    </div>
+    <dl id="sistem"></dl>
+  </div>
+</section>
+
+<section>
+  <details><summary>Ham kayıt (log.txt)</summary><pre id="ham"></pre></details>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = t => String(t ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let veri = null;
+
+function sure(sn) {
+  sn = Math.max(0, Math.floor(Number(sn) || 0));
+  const sa = Math.floor(sn / 3600), dk = Math.floor(sn % 3600 / 60);
+  return sa ? `${sa} sa ${dk} dk` : dk ? `${dk} dk` : `${sn} sn`;
+}
+function siddet(l) {
+  if (l.kategori === "KAMERA_ENGELI" || ["KRITIK", "HATA"].includes(l.seviye)) return "tehlike";
+  if (l.seviye === "UYARI" || /YABANCI|YANLIS_SIFRE/.test(l.olay || "")) return "uyari";
+  return "";
+}
+function cizgi(id, anahtar) {
+  const g = (veri.telemetri_gecmisi || []).map(x => Number(x[anahtar]) || 0);
+  const el = $(id);
+  if (g.length < 2) { el.innerHTML = ""; return; }
+  const adim = 240 / (g.length - 1);
+  el.innerHTML = `<polyline points="${g.map((v, i) => `${(i * adim).toFixed(1)},${(52 - Math.min(100, v) * 0.48).toFixed(1)}`).join(" ")}"/>`;
+}
+function ciz(v) {
+  veri = v;
+  const a = v.anlik_telemetri || {}, o = v.oturum_ozeti || {}, s = v.sistem_bilgisi || {};
+  $("guncelleme").textContent = "Son güncelleme " + (v.son_guncelleme || "-");
+
+  const hero = $("hero");
+  if (a.kamera_engeli_var) { $("durum").textContent = "Kamera engelli, görüntü alınamıyor."; hero.className = "hero tehlike"; }
+  else if (a.kilitli_mi) { $("durum").textContent = "Ekran kilitli, kamera nöbette."; hero.className = "hero iyi"; }
+  else { $("durum").textContent = "Oturum açık. Ekran kilitlenince nöbet başlar."; hero.className = "hero"; }
+  const son = (v.loglar || []).filter(l => l.kategori !== "TELEMETRI").slice(-1)[0];
+  $("sonOlay").textContent = son ? `Son olay ${son.tarih.slice(11, 16)}: ${son.mesaj}` : "";
+
+  $("yabanci").textContent = o.yabanci_yuz_sayisi || 0;
+  $("sifre").textContent = o.yanlis_sifre_sayisi || 0;
+  $("engel").textContent = o.kamera_engeli_sayisi || 0;
+  $("uyku").textContent = o.uyku_sayisi || 0;
+
+  const parcalar = [["Aktif", o.aktif_kullanim_sn, "var(--vurgu)"], ["Boşta", o.bosta_kalma_sn, "var(--soluk)"],
+                    ["Kilitli", o.kilitli_kalma_sn, "var(--iyi)"], ["Uyku", o.uyku_suresi_sn, "var(--uyari)"]];
+  const toplam = parcalar.reduce((t, p) => t + (p[1] || 0), 0) || 1;
+  $("dagilim").innerHTML = parcalar.map(p => `<i style="width:${(p[1] || 0) / toplam * 100}%;background:${p[2]}"></i>`).join("");
+  $("lejant").innerHTML = parcalar.map(p => `<span><b style="background:${p[2]}"></b>${p[0]} ${sure(p[1])}</span>`).join("");
+
+  $("cpuMetin").textContent = `%${a.cpu_yuzde ?? 0}` + (a.cpu_sicaklik_c != null ? `, ${a.cpu_sicaklik_c} °C` : "");
+  $("ramMetin").textContent = `%${a.ram_yuzde ?? 0}, ${a.ram_kullanilan_gb ?? 0} / ${a.ram_toplam_gb ?? 0} GB`;
+  cizgi("cpuGrafik", "cpu_yuzde"); cizgi("ramGrafik", "ram_yuzde");
+
+  const satirlar = [
+    ["Bilgisayar", `${s.bilgisayar_adi || "-"} (${s.kullanici || "-"})`],
+    ["Sistem", s.isletim_sistemi], ["İşlemci", `${s.islemci || "-"}, ${s.cekirdek_sayisi || "-"} çekirdek`],
+    ["Disk", `%${a.disk_yuzde ?? 0} dolu, ${a.disk_bos_gb ?? 0} GB boş`],
+    ["Güç", a.pil_yuzde != null ? `%${a.pil_yuzde}, ${a.sarjda_mi ? "şarjda" : "pilde"}` : "Prize bağlı"],
+    ["Ağ", `${a.ag_gonderilen_mb ?? 0} MB giden, ${a.ag_alinan_mb ?? 0} MB gelen`],
+    ["Açık süre", sure(a.sistem_uptime_sn)], ["Zamanlayıcı", a.aktif_zamanlayici || "Yok"],
+    ["Tanıdık yüzler", (s.kayitli_yuzler || []).join(", ") || "Kayıtlı yüz yok"],
+    ["Telegram", s.telegram_aktif ? "Açık" : "Ayarlanmadı"], ["Veri klasörü", s.veri_klasoru],
+  ];
+  $("sistem").innerHTML = satirlar.map(([k, d]) => `<dt>${esc(k)}</dt><dd>${esc(d)}</dd>`).join("");
+  if (v.ham_log_txt) $("ham").textContent = v.ham_log_txt;
+  listele();
+}
+function listele() {
+  if (!veri) return;
+  const q = $("ara").value.toLowerCase(), g = $("grup").value;
+  const uygun = l => ({
+    onemli: l.kategori !== "TELEMETRI", tumu: true,
+    guvenlik: ["GUVENLIK", "KAMERA_ENGELI"].includes(l.kategori),
+    sistem: ["SISTEM", "UYKU"].includes(l.kategori), hata: ["HATA", "UYARI"].includes(l.kategori) || ["HATA", "KRITIK"].includes(l.seviye),
+  })[g];
+  const liste = (veri.loglar || []).filter(l => uygun(l) && (!q || JSON.stringify(l).toLowerCase().includes(q))).reverse().slice(0, 300);
+  $("olaylar").innerHTML = liste.length ? liste.map(l => {
+    const d = Object.entries(l.detay || {}).map(([k, x]) => `${k}: ${x}`).join(", ");
+    return `<div class="olay ${siddet(l)}"><time>${esc(l.tarih)}</time><span>${esc(l.mesaj)}</span><small>${esc(l.olay)}${d ? " | " + esc(d) : ""}</small></div>`;
+  }).join("") : `<div class="bos">Bu filtreyle eşleşen olay yok.</div>`;
+}
+function yenile() {
+  const s = document.createElement("script");
+  s.src = "telemetri_veri.js?t=" + Date.now();
+  s.onload = () => { if (window.GUARD_DATA) ciz(window.GUARD_DATA); s.remove(); };
+  s.onerror = () => s.remove();
+  document.head.appendChild(s);
+}
+if (window.GUARD_DATA) ciz(window.GUARD_DATA);
+setInterval(yenile, 5000);
+</script>
+</body>
+</html>
