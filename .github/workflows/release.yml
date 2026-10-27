@@ -23,10 +23,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      - name: Build exe
+      - name: Build GuardSecurity.exe
         run: |
           pyinstaller --noconfirm --onefile --windowed `
             --name GuardSecurity `
+            --icon assets/app.ico `
+            --version-file assets/version.txt `
             --add-data "assets/dashboard.html;." `
             --paths src `
             --hidden-import guard.ayarlar `
@@ -36,11 +38,42 @@ jobs:
             --hidden-import guard.kisayol `
             src/guard/__main__.py
 
+      - name: Build GuardKurulum.exe
+        run: |
+          pyinstaller --noconfirm --onefile --console `
+            --name GuardKurulum `
+            --icon assets/app.ico `
+            --version-file assets/version_kurulum.txt `
+            installer/kurulum.py
+
+      - name: Sign (optional — CODE_SIGN_PFX_BASE64 + CODE_SIGN_PASSWORD secrets)
+        shell: pwsh
+        env:
+          PFX_B64: ${{ secrets.CODE_SIGN_PFX_BASE64 }}
+          PFX_PASS: ${{ secrets.CODE_SIGN_PASSWORD }}
+        run: |
+          if (-not $env:PFX_B64) {
+            Write-Host "No signing secrets; skipping Authenticode."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_B64))
+          $pass = ConvertTo-SecureString $env:PFX_PASS -AsPlainText -Force
+          $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfx, $pass)
+          foreach ($name in @("GuardSecurity.exe", "GuardKurulum.exe")) {
+            $path = "dist\$name"
+            $sig = Set-AuthenticodeSignature -FilePath $path -Certificate $cert `
+              -TimestampServer "http://timestamp.digicert.com" -HashAlgorithm SHA256
+            Write-Host "$name -> $($sig.Status)"
+          }
+
       - name: SHA256
         shell: pwsh
         run: |
-          $h = (Get-FileHash dist\GuardSecurity.exe -Algorithm SHA256).Hash.ToLower()
-          Set-Content -Path dist\GuardSecurity.exe.sha256 -Value "$h  GuardSecurity.exe" -NoNewline
+          foreach ($name in @("GuardSecurity.exe", "GuardKurulum.exe")) {
+            $h = (Get-FileHash "dist\$name" -Algorithm SHA256).Hash.ToLower()
+            Set-Content -Path "dist\$name.sha256" -Value "$h  $name" -NoNewline
+          }
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
@@ -48,5 +81,7 @@ jobs:
           files: |
             dist/GuardSecurity.exe
             dist/GuardSecurity.exe.sha256
+            dist/GuardKurulum.exe
+            dist/GuardKurulum.exe.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
